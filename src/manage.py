@@ -16,6 +16,7 @@ class AutoDownloader():
             matchId = self.taskQ.get() # block=True
             downloader = DownloadThread(matchId)
             downloader.start()
+            downloader.join() # until download finish
             time.sleep(1)
 
     def producer(self): # put new matchId in taskQ

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from manage import AutoDownloader
+from src.manage import AutoDownloader
 
 
 if __name__ == '__main__':
