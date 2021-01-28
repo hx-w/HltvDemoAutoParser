@@ -5,7 +5,7 @@ import requests
 import pymysql
 import ujson
 
-from src.logger import demo_logger
+from utils.logger import demo_logger
 
 # detect new match result from hltv and return ONE matchId
 class NewMatchDetector():
@@ -70,3 +70,4 @@ class NewMatchDetector():
                     self.close_mysql()
                     return matchId
             time.sleep(60)
+

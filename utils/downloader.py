@@ -5,7 +5,7 @@ import threading
 import requests
 from bs4 import BeautifulSoup
 
-from src.logger import demo_logger
+from utils.logger import demo_logger
 
 # class for demo download
 class DownloadThread(threading.Thread):
@@ -47,7 +47,7 @@ class DownloadThread(threading.Thread):
             for chunk in response.iter_content(chunk_size=1024):
                 if not chunk: continue
                 save_count_bytes += len(chunk)
-                if time.time() - last_time > 5: # query proc every 60s
+                if time.time() - last_time > 30: # query proc every 60s
                     proc = save_count_bytes / file_size_bytes
                     print(f"[Proc] <{self.tar_name}> {self.formatFloat(save_count_bytes / 1048576)}/{self.formatFloat(file_size_bytes / 1048576)}M ===== {self.formatFloat(proc * 100)}%")
                     last_time = time.time()

@@ -12,3 +12,4 @@ def demo_logger(purpose: str):
                 print('[Error]', '%s | %s [%s]' % (ept, func.__name__, currTime))
         return warpper
     return decorator
+

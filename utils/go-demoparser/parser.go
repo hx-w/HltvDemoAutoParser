@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -25,8 +26,30 @@ type UtilityRecord struct {
 
 var utrecord_collector map[int64]UtilityRecord
 
+func ArgParser() (string, string, string, int, int) {
+	var matchName string
+	var matchTime string
+	var filePath string
+	var matchId int
+	var demoId int
+
+	flag.StringVar(&matchName, "matchName", "Unknown", "Demo match name")
+	flag.StringVar(&matchTime, "matchTime", "Unknown", "Demo match time")
+	flag.StringVar(&filePath, "filePath", "Unknown", "Demo file path")
+	flag.IntVar(&matchId, "matchId", 0, "Demo match id")
+	flag.IntVar(&demoId, "demoId", 0, "Demo id")
+
+	flag.Parse()
+
+	return matchName, matchTime, filePath, matchId, demoId
+}
+
 func main() {
-	f, err := os.Open("demos/inferno.dem")
+	// arg info
+	matchName, matchTime, filePath, matchId, demoId := ArgParser()
+	fmt.Println(matchName, matchTime, matchId, demoId)
+
+	f, err := os.Open(filePath)
 	if err != nil {
 		panic(err)
 	}
@@ -41,7 +64,7 @@ func main() {
 	// if err != nil {
 	// 	panic(err)
 	// }
-	// mapname := header.MapName
+	// mapName := header.MapName
 
 	utrecord_collector = make(map[int64]UtilityRecord)
 	p.RegisterEventHandler(func(e events.GrenadeProjectileThrow) {

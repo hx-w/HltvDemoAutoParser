@@ -130,3 +130,5 @@ dmypy.json
 
 # demo static
 static/demos/*
+
+utils/go-demoparser/demos

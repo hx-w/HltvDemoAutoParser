@@ -3,13 +3,14 @@ import time
 from queue import Queue
 import threading
 
-from src.downloader import DownloadThread
-from src.detector import NewMatchDetector
+from utils.downloader import DownloadThread
+from utils.detector import NewMatchDetector
 
 class AutoDownloader():
     def __init__(self, qmaxsize=3):
         # store matchId: str
         self.taskQ = Queue(maxsize=qmaxsize)
+        self.match_detector = NewMatchDetector()
 
     def consumer(self): # download demo
         while True:
@@ -20,9 +21,8 @@ class AutoDownloader():
             time.sleep(1)
 
     def producer(self): # put new matchId in taskQ
-        match_detector = NewMatchDetector()
         while True:
-            new_matchId = match_detector.detect() # block when no new match
+            new_matchId = self.match_detector.detect() # block when no new match
             self.taskQ.put(new_matchId) # block if queue full
             time.sleep(1)
 
@@ -31,3 +31,4 @@ class AutoDownloader():
         t_con = threading.Thread(target=self.consumer)
         t_pro.start()
         t_con.start()
+
