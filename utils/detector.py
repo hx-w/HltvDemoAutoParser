@@ -54,7 +54,7 @@ class NewMatchDetector():
             INSERT INTO %s
             (matchId, status, record_time)
             VALUES
-            ('%s', 'DOWNLOADING', '%s')
+            ('%s', 'DOWNLOAD', '%s')
             """ % (self.db_tablename, matchId, currTime)
         )
         self.db.commit()

@@ -7,26 +7,28 @@ import (
 	"os"
 	"time"
 
+	"github.com/Shopify/sarama"
 	dem "github.com/markus-wa/demoinfocs-golang/v2/pkg/demoinfocs"
 	events "github.com/markus-wa/demoinfocs-golang/v2/pkg/demoinfocs/events"
 )
 
 type UtilityRecord struct {
-	player_name string
-	steamid     uint64
-	utType      string
-	throw_pitch float32
-	throw_yaw   float32
-	throw_posX  float32
-	throw_posY  float32
-	throw_posZ  float32
-	end_posX    float32
-	end_posY    float32
-	end_posZ    float32
-	round       int
-	valid       bool
-	start_time  time.Duration
-	air_time	float32
+	player_name      string
+	steamid          uint64
+	utType           string
+	throw_pitch      float32
+	throw_yaw        float32
+	throw_posX       float32
+	throw_posY       float32
+	throw_posZ       float32
+	end_posX         float32
+	end_posY         float32
+	end_posZ         float32
+	round            int
+	valid            bool
+	start_time       time.Duration
+	air_time         float32
+	match_throw_time float32
 }
 
 var utrecord_collector map[int64]UtilityRecord
@@ -45,7 +47,7 @@ func ArgParser() {
 	flag.Parse()
 }
 
-func JsonFomat(ut UtilityRecord, round int) {
+func JsonFomat(ut UtilityRecord, round int) string {
 	json_map := map[string]interface{}{
 		"aim_pitch":        ut.throw_pitch,
 		"aim_yaw":          ut.throw_yaw,
@@ -71,18 +73,43 @@ func JsonFomat(ut UtilityRecord, round int) {
 		"nickname":         ut.player_name,
 		"tickrate":         tickRate,
 		"utility_type":     type_map[ut.utType],
-		"match_throw_time": 0,
+		"match_throw_time": ut.match_throw_time,
 	}
 
 	str, err := json.Marshal(json_map)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(string(str))
+	return string(str)
 }
 
 func main() {
 	const he_flash_time float32 = 1.63
+
+	config := sarama.NewConfig()
+	config.Producer.RequiredAcks = sarama.WaitForAll          // 发送完数据需要leader和follow都确认
+	config.Producer.Partitioner = sarama.NewRandomPartitioner // 新选出一个partition
+	config.Producer.Return.Successes = true                   // 成功交付的消息将在success channel返回
+
+	// 连接kafka
+	client, err := sarama.NewSyncProducer([]string{"kafka:9092"}, config)
+	if err != nil {
+		fmt.Println("producer closed, err:", err)
+		return
+	}
+	defer client.Close()
+
+	// 构造一个消息
+	msg := &sarama.ProducerMessage{}
+	msg.Topic = "pro_utility"
+	msg.Value = sarama.StringEncoder("this is a test log")
+	// 发送消息
+	pid, offset, err := client.SendMessage(msg)
+	if err != nil {
+		fmt.Println("send msg failed, err:", err)
+		return
+	}
+	fmt.Printf("pid:%v offset:%v\n", pid, offset)
 
 	// arg info
 	ArgParser()
@@ -97,7 +124,8 @@ func main() {
 	p := dem.NewParser(f)
 	defer p.Close()
 
-	round := 1
+	round := 0
+	var round_start_time time.Duration
 
 	header, err := p.ParseHeader()
 	if err != nil {
@@ -114,22 +142,33 @@ func main() {
 	type_map["Molotov"] = "molotov"
 
 	utrecord_collector = make(map[int64]UtilityRecord)
-	p.RegisterEventHandler(func(e events.GrenadeProjectileThrow) {
-		utrecord_collector[int64(e.Projectile.WeaponInstance.UniqueID())] = UtilityRecord{
-			player_name: string(e.Projectile.Thrower.Name),
-			steamid:     uint64(e.Projectile.Thrower.SteamID64),
-			throw_yaw:   float32(e.Projectile.Thrower.ViewDirectionX()),
-			throw_pitch: float32(e.Projectile.Thrower.ViewDirectionY()),
-			throw_posX:  float32(e.Projectile.Thrower.LastAlivePosition.X),
-			throw_posY:  float32(e.Projectile.Thrower.LastAlivePosition.Y),
-			throw_posZ:  float32(e.Projectile.Thrower.LastAlivePosition.Z),
-			utType:      string(e.Projectile.WeaponInstance.String()),
-			round:       int(round),
-			valid:       false,
-			start_time:  p.CurrentTime(),
-		}
+
+	p.RegisterEventHandler(func(e events.RoundStart) {
+		round++
+		round_start_time = p.CurrentTime()
 	})
 
+	p.RegisterEventHandler(func(e events.MatchStartedChanged) {
+		round++
+		round_start_time = p.CurrentTime()
+	})
+
+	p.RegisterEventHandler(func(e events.GrenadeProjectileThrow) {
+		utrecord_collector[int64(e.Projectile.WeaponInstance.UniqueID())] = UtilityRecord{
+			player_name:      string(e.Projectile.Thrower.Name),
+			steamid:          uint64(e.Projectile.Thrower.SteamID64),
+			throw_yaw:        float32(e.Projectile.Thrower.ViewDirectionX()),
+			throw_pitch:      float32(e.Projectile.Thrower.ViewDirectionY()),
+			throw_posX:       float32(e.Projectile.Thrower.LastAlivePosition.X),
+			throw_posY:       float32(e.Projectile.Thrower.LastAlivePosition.Y),
+			throw_posZ:       float32(e.Projectile.Thrower.LastAlivePosition.Z),
+			utType:           string(e.Projectile.WeaponInstance.String()),
+			round:            int(round),
+			valid:            false,
+			start_time:       p.CurrentTime(),
+			match_throw_time: float32((p.CurrentTime() - round_start_time).Seconds()),
+		}
+	})
 	count := 0
 
 	// SMOKE DETONATE
@@ -148,7 +187,7 @@ func main() {
 			count++
 
 			// fmt.Printf("[%s] setang %f %f 0; setpos %f %f %f\n\n", utrecord.utType, utrecord.throw_pitch, utrecord.throw_yaw, utrecord.throw_posX, utrecord.throw_posY, utrecord.throw_posZ)
-			// JsonFomat(utrecord, round)
+			json_str := JsonFomat(utrecord, round)
 			delete(utrecord_collector, uId)
 		}
 	})
@@ -173,7 +212,7 @@ func main() {
 			count++
 
 			// fmt.Printf("[%s] setang %f %f 0; setpos %f %f %f\n\n", utrecord.utType, utrecord.throw_pitch, utrecord.throw_yaw, utrecord.throw_posX, utrecord.throw_posY, utrecord.throw_posZ)
-			// JsonFomat(utrecord, round)
+			json_str := JsonFomat(utrecord, round)
 			delete(utrecord_collector, uId)
 		}
 	})
@@ -190,7 +229,8 @@ func main() {
 			utrecord_collector[uId] = utrecord
 			utrecord.air_time = he_flash_time
 			count++
-			// JsonFomat(utrecord, round)
+
+			json_str := JsonFomat(utrecord, round)
 			// fmt.Printf("[%s] setang %f %f 0; setpos %f %f %f\n\n", utrecord.utType, utrecord.throw_pitch, utrecord.throw_yaw, utrecord.throw_posX, utrecord.throw_posY, utrecord.throw_posZ)
 			delete(utrecord_collector, uId)
 		}
@@ -209,15 +249,11 @@ func main() {
 
 			utrecord.air_time = he_flash_time
 			count++
-			// JsonFomat(utrecord, round)
+			json_str := JsonFomat(utrecord, round)
 
 			// fmt.Printf("[%s] setang %f %f 0; setpos %f %f %f\n\n", utrecord.utType, utrecord.throw_pitch, utrecord.throw_yaw, utrecord.throw_posX, utrecord.throw_posY, utrecord.throw_posZ)
 			delete(utrecord_collector, uId)
 		}
-	})
-
-	p.RegisterEventHandler(func(e events.RoundEnd) {
-		round++
 	})
 
 	// Parse to end
@@ -225,5 +261,4 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
 }
