@@ -99,7 +99,6 @@ func main() {
 	// }
 	// defer client.Close()
 
-
 	// arg info
 	ArgParser()
 	fmt.Println(matchName, matchTime, matchId, demoId)
@@ -146,7 +145,7 @@ func main() {
 	p.RegisterEventHandler(func(e events.GrenadeProjectileThrow) {
 		uId := int64(e.Projectile.WeaponInstance.UniqueID())
 		utrecord, ok := utrecord_collector[uId]
-		if !ok {
+		if !ok && utrecord.valid {
 			utrecord_collector[int64(e.Projectile.WeaponInstance.UniqueID())] = UtilityRecord{
 				player_name:      string(e.Projectile.Thrower.Name),
 				steamid:          uint64(e.Projectile.Thrower.SteamID64),
@@ -161,8 +160,6 @@ func main() {
 				start_time:       p.CurrentTime(),
 				match_throw_time: float32((p.CurrentTime() - round_start_time).Seconds()),
 			}
-		} else {
-			fmt.Println(utrecord.utType)
 		}
 	})
 
@@ -182,7 +179,7 @@ func main() {
 
 			// fmt.Printf("[%s] setang %f %f 0; setpos %f %f %f\n\n", utrecord.utType, utrecord.throw_pitch, utrecord.throw_yaw, utrecord.throw_posX, utrecord.throw_posY, utrecord.throw_posZ)
 			// json_str := JsonFomat(utrecord, round)
-			
+
 			// 构造一个消息
 			// msg := &sarama.ProducerMessage{}
 			// msg.Topic = "pro_utility"
@@ -217,7 +214,7 @@ func main() {
 			utrecord.air_time = float32((end_time - utrecord.start_time).Seconds())
 			count++
 
-			fmt.Printf("[%s] setang %f %f 0; setpos %f %f %f\n\n", utrecord.utType, utrecord.throw_pitch, utrecord.throw_yaw, utrecord.throw_posX, utrecord.throw_posY, utrecord.throw_posZ)
+			// fmt.Printf("[%s] setang %f %f 0; setpos %f %f %f\n\n", utrecord.utType, utrecord.throw_pitch, utrecord.throw_yaw, utrecord.throw_posX, utrecord.throw_posY, utrecord.throw_posZ)
 			// json_str := JsonFomat(utrecord, round)
 			utrecord_collector[uId] = utrecord
 		}

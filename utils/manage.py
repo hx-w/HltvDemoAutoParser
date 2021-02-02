@@ -5,6 +5,7 @@ import threading
 
 from utils.downloader import DownloadThread
 from utils.detector import NewMatchDetector
+from utils.parser import DemoParser
 
 class AutoDownloader():
     def __init__(self, qmaxsize=3):
@@ -18,6 +19,8 @@ class AutoDownloader():
             downloader = DownloadThread(matchId)
             downloader.start()
             downloader.join() # until download finish
+            parser = DemoParser(downloader.matchId, downloader.demoId)
+            parser.parse()
             time.sleep(1)
 
     def producer(self): # put new matchId in taskQ

@@ -16,9 +16,9 @@ class NewMatchDetector():
 
     @demo_logger('init lastmatch')
     def init_lastmatch(self):
-        if not self.last_matchId: return
+        if self.last_matchId: return
         result = self.get_new_result()
-        last_matchId = result['matchId']
+        self.last_matchId = result['matchId']
 
     @demo_logger('query hltv-api => all results')
     def get_new_result(self) -> dict:
@@ -31,12 +31,9 @@ class NewMatchDetector():
         while True:
             result = self.get_new_result()
             matchId = result['matchId']
-            if matchId == self.last_matchId:
-                print('Detect failed: old matchid')
-                continue
-            if self.query_if_new_match(matchId):
-                self.insert_new_match(matchId)
-                self.close_mysql()
+            if matchId != self.last_matchId:
+                self.last_matchId = matchId
                 return matchId
+            print('Detect failed: old matchid')
             time.sleep(60)
 
