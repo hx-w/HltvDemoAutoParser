@@ -11,63 +11,32 @@ from utils.logger import demo_logger
 class NewMatchDetector():
     def __init__(self):
         self.url = 'https://hltv-api.vercel.app/api/results'
-        self.db_host = 'localhost'
-        self.db_user = 'demo_detector'
-        self.db_name = 'csgodemo'
-        self.db_password = '811021'
-        self.db_tablename = 'demo_history'
-        self.db = None
-        self.results = []
+        self.last_matchId = None
+        self.result = {}
 
-    @demo_logger('<database> connect mysql')
-    def connect_mysql(self):
-        self.db = pymysql.connect(
-            host = self.db_host,
-            user = self.db_user,
-            db = self.db_name,
-            passwd = self.db_password
-        )
-
-    @demo_logger('<database> close mysql')
-    def close_mysql(self):
-        self.db.close()
+    @demo_logger('init lastmatch')
+    def init_lastmatch(self):
+        if not self.last_matchId: return
+        result = self.get_new_result()
+        last_matchId = result['matchId']
 
     @demo_logger('query hltv-api => all results')
-    def get_all_results(self) -> list:
+    def get_new_result(self) -> dict:
         response = requests.get(self.url)
-        self.results = ujson.loads(response.content.decode('utf-8'))
+        return ujson.loads(response.content.decode('utf-8'))[0]
 
-    @demo_logger('<database> query match exist')
-    def query_if_new_match(self, matchId: str) -> bool:
-        cursor = self.db.cursor()
-        ifExists = cursor.execute(
-            "SELECT 1 FROM %s WHERE matchId = '%s' limit 1" % (self.db_tablename, matchId)
-        )
-        return ifExists != 1
-
-    @demo_logger('<database> insert match')
-    def insert_new_match(self, matchId: str):
-        currTime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        cursor = self.db.cursor()
-        cursor.execute(
-            """
-            INSERT INTO %s
-            (matchId, status, record_time)
-            VALUES
-            ('%s', 'DOWNLOAD', '%s')
-            """ % (self.db_tablename, matchId, currTime)
-        )
-        self.db.commit()
-
+    @demo_logger('detecting new match results')
     def detect(self) -> str:
-        self.connect_mysql()
+        self.init_lastmatch()
         while True:
-            self.get_all_results()
-            for each_ in self.results:
-                matchId = each_['matchId']
-                if self.query_if_new_match(matchId):
-                    self.insert_new_match(matchId)
-                    self.close_mysql()
-                    return matchId
+            result = self.get_new_result()
+            matchId = result['matchId']
+            if matchId == self.last_matchId:
+                print('Detect failed: old matchid')
+                continue
+            if self.query_if_new_match(matchId):
+                self.insert_new_match(matchId)
+                self.close_mysql()
+                return matchId
             time.sleep(60)
 
