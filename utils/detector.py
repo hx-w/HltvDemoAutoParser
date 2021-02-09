@@ -20,7 +20,7 @@ class NewMatchDetector():
         result = self.get_new_result()
         self.last_matchId = result['matchId']
 
-    @demo_logger('query hltv-api => all results')
+    # @demo_logger('query hltv-api => all results')
     def get_new_result(self) -> dict:
         response = requests.get(self.url)
         return ujson.loads(response.content.decode('utf-8'))[0]
@@ -34,6 +34,5 @@ class NewMatchDetector():
             if matchId != self.last_matchId:
                 self.last_matchId = matchId
                 return matchId
-            print('Detect failed: old matchid')
             time.sleep(60)
 

@@ -30,3 +30,4 @@ class DemoParser():
             os.remove(demopath)
         # remove empty dir
         shutil.rmtree(self.demo_dir)
+        os.system(f"scp -i ~/.ssh/csgowiki_nopass.pem static/info/{self.parser_matchId}_*.json root@www.csgowiki.top:/home/csgowiki/csgowiki_docker/demoparser/static/")

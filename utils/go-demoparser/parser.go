@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"time"
 
 	dem "github.com/markus-wa/demoinfocs-golang/v2/pkg/demoinfocs"
@@ -98,22 +99,6 @@ func main() {
 	ArgParser()
 	fmt.Println(matchName, matchTime, matchId, demoId)
 
-	var infoPath = "static/info/" + matchName + ".txt"
-	var infoFile *os.File
-	var infoError error
-
-	if !checkFileIsExist(infoPath) {
-		infoFile, infoError = os.Create(infoPath)
-	}
-	infoFile, infoError = os.OpenFile(infoPath, os.O_WRONLY|os.O_APPEND, os.ModeAppend)
-	if infoError != nil {
-		panic(infoError)
-	}
-	defer infoFile.Close()
-
-	// init
-	infoFile.WriteString("[{}")
-
 	f, err := os.Open(filePath)
 	if err != nil {
 		panic(err)
@@ -133,6 +118,22 @@ func main() {
 	mapName = header.MapName
 	tickRate = p.TickRate()
 	count := 0
+
+	var infoPath = "static/info/" + strconv.Itoa(matchId) + "_" + mapName + ".json"
+	var infoFile *os.File
+	var infoError error
+
+	if !checkFileIsExist(infoPath) {
+		infoFile, infoError = os.Create(infoPath)
+	}
+	infoFile, infoError = os.OpenFile(infoPath, os.O_WRONLY|os.O_APPEND, os.ModeAppend)
+	if infoError != nil {
+		panic(infoError)
+	}
+	defer infoFile.Close()
+
+	// init
+	infoFile.WriteString("[{}")
 
 	type_map = make(map[string]string)
 	type_map["Smoke Grenade"] = "smoke"
