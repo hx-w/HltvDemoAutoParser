@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
-	// "github.com/Shopify/sarama"
 	dem "github.com/markus-wa/demoinfocs-golang/v2/pkg/demoinfocs"
+	"github.com/markus-wa/demoinfocs-golang/v2/pkg/demoinfocs/common"
 	events "github.com/markus-wa/demoinfocs-golang/v2/pkg/demoinfocs/events"
 )
 
@@ -83,25 +84,35 @@ func JsonFomat(ut UtilityRecord, round int) string {
 	return string(str)
 }
 
+func checkFileIsExist(filename string) bool {
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
+
 func main() {
 	const he_flash_time float32 = 1.63
-
-	// config := sarama.NewConfig()
-	// config.Producer.RequiredAcks = sarama.WaitForAll          // 发送完数据需要leader和follow都确认
-	// config.Producer.Partitioner = sarama.NewRandomPartitioner // 新选出一个partition
-	// config.Producer.Return.Successes = true                   // 成功交付的消息将在success channel返回
-
-	// // 连接kafka
-	// client, err := sarama.NewSyncProducer([]string{"kafka:9092"}, config)
-	// if err != nil {
-	// 	fmt.Println("producer closed, err:", err)
-	// 	return
-	// }
-	// defer client.Close()
 
 	// arg info
 	ArgParser()
 	fmt.Println(matchName, matchTime, matchId, demoId)
+
+	var infoPath = "static/info/" + matchName + ".txt"
+	var infoFile *os.File
+	var infoError error
+
+	if !checkFileIsExist(infoPath) {
+		infoFile, infoError = os.Create(infoPath)
+	}
+	infoFile, infoError = os.OpenFile(infoPath, os.O_WRONLY|os.O_APPEND, os.ModeAppend)
+	if infoError != nil {
+		panic(infoError)
+	}
+	defer infoFile.Close()
+
+	// init
+	infoFile.WriteString("[{}")
 
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -145,7 +156,7 @@ func main() {
 	p.RegisterEventHandler(func(e events.GrenadeProjectileThrow) {
 		uId := int64(e.Projectile.WeaponInstance.UniqueID())
 		utrecord, ok := utrecord_collector[uId]
-		if !ok && utrecord.valid {
+		if !ok {
 			utrecord_collector[int64(e.Projectile.WeaponInstance.UniqueID())] = UtilityRecord{
 				player_name:      string(e.Projectile.Thrower.Name),
 				steamid:          uint64(e.Projectile.Thrower.SteamID64),
@@ -160,6 +171,8 @@ func main() {
 				start_time:       p.CurrentTime(),
 				match_throw_time: float32((p.CurrentTime() - round_start_time).Seconds()),
 			}
+		} else {
+			fmt.Println(utrecord.utType)
 		}
 	})
 
@@ -177,21 +190,13 @@ func main() {
 			utrecord.air_time = float32((end_time - utrecord.start_time).Seconds())
 			count++
 
-			// fmt.Printf("[%s] setang %f %f 0; setpos %f %f %f\n\n", utrecord.utType, utrecord.throw_pitch, utrecord.throw_yaw, utrecord.throw_posX, utrecord.throw_posY, utrecord.throw_posZ)
-			// json_str := JsonFomat(utrecord, round)
+			json_str := JsonFomat(utrecord, round)
+			n, infoError := io.WriteString(infoFile, ","+json_str)
+			if infoError != nil {
+				panic(infoError)
+			}
+			fmt.Printf("writen %d bytes | %d\n", n, count)
 
-			// 构造一个消息
-			// msg := &sarama.ProducerMessage{}
-			// msg.Topic = "pro_utility"
-			// msg.Value = sarama.StringEncoder(json_str)
-			// // 发送消息
-			// pid, offset, err := client.SendMessage(msg)
-			// if err != nil {
-			// 	fmt.Println("send msg failed, err:", err)
-			// 	return
-			// }
-
-			// fmt.Printf("pid:%v offset:%v\n", pid, offset)
 			utrecord_collector[uId] = utrecord
 		}
 	})
@@ -214,8 +219,12 @@ func main() {
 			utrecord.air_time = float32((end_time - utrecord.start_time).Seconds())
 			count++
 
-			// fmt.Printf("[%s] setang %f %f 0; setpos %f %f %f\n\n", utrecord.utType, utrecord.throw_pitch, utrecord.throw_yaw, utrecord.throw_posX, utrecord.throw_posY, utrecord.throw_posZ)
-			// json_str := JsonFomat(utrecord, round)
+			json_str := JsonFomat(utrecord, round)
+			n, infoError := io.WriteString(infoFile, ","+json_str)
+			if infoError != nil {
+				panic(infoError)
+			}
+			fmt.Printf("writen %d bytes | %d\n", n, count)
 			utrecord_collector[uId] = utrecord
 		}
 	})
@@ -232,7 +241,12 @@ func main() {
 			utrecord.air_time = he_flash_time
 			count++
 
-			// json_str := JsonFomat(utrecord, round)
+			json_str := JsonFomat(utrecord, round)
+			n, infoError := io.WriteString(infoFile, ","+json_str)
+			if infoError != nil {
+				panic(infoError)
+			}
+			fmt.Printf("writen %d bytes | %d\n", n, count)
 			utrecord_collector[uId] = utrecord
 		}
 	})
@@ -248,9 +262,24 @@ func main() {
 			utrecord.end_posZ = float32(e.Position.Z)
 			utrecord.air_time = he_flash_time
 			count++
-			// json_str := JsonFomat(utrecord, round)
+			json_str := JsonFomat(utrecord, round)
+			n, infoError := io.WriteString(infoFile, ","+json_str)
+			if infoError != nil {
+				panic(infoError)
+			}
+			fmt.Printf("writen %d bytes | %d\n", n, count)
 
 			utrecord_collector[uId] = utrecord
+		}
+	})
+
+	p.RegisterEventHandler(func(e events.GamePhaseChanged) {
+		if e.NewGamePhase == common.GamePhaseGameEnded {
+			n, infoError := io.WriteString(infoFile, "]")
+			if infoError != nil {
+				panic(infoError)
+			}
+			fmt.Printf("writen %d bytes | %d\n", n, count)
 		}
 	})
 
@@ -259,4 +288,5 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
 }

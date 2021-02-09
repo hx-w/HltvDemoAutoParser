@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
-import time
+import time, sys
 import os, shutil
-import threading
 import requests
 from bs4 import BeautifulSoup
 
 from utils.logger import demo_logger
 
 # class for demo download
-class DownloadThread(threading.Thread):
+class DownloadThread():
     def __init__(self, matchId: str):
-        threading.Thread.__init__(self)
         self.matchId = matchId # format: in https://hltv-api.vercel.app/api/results
         self.demoId = 'Not Found' # format: /download/demo/<str>
         self.host = 'https://www.hltv.org'
@@ -41,17 +39,23 @@ class DownloadThread(threading.Thread):
         response = requests.get(url, headers=self.headers, stream=True)
         assert response.status_code == requests.codes.ok, f"<{try_time + 1} try> Download Network Issue ({response.status_code}) | {self.tar_name}"
         file_size_bytes = float(response.headers['Content-Length'])
-        save_count_bytes = 0.0
-        last_time = time.time()
-        with open(f'{self.download_directory}{self.tar_name}{self.file_backend}', 'wb') as demoFile:
+
+        rar_path = f"{self.download_directory}{self.tar_name}{self.file_backend}"
+        if os.path.exists(rar_path):
+            temp_size = os.path.getsize(rar_path)
+        else:
+            temp_size = 0
+        print(f"download(bytes)  {temp_size}/{file_size_bytes}")
+        with open(rar_path, 'ab') as demoFile:
             for chunk in response.iter_content(chunk_size=1024):
                 if not chunk: continue
-                save_count_bytes += len(chunk)
-                if time.time() - last_time > 30: # query proc every 60s
-                    proc = save_count_bytes / file_size_bytes
-                    print(f"[Proc] <{self.tar_name}> {self.formatFloat(save_count_bytes / 1048576)}/{self.formatFloat(file_size_bytes / 1048576)}M ===== {self.formatFloat(proc * 100)}%")
-                    last_time = time.time()
+                temp_size += len(chunk)
                 demoFile.write(chunk)
+                demoFile.flush()
+                done = int(50 * temp_size / file_size_bytes)
+                sys.stdout.write("\r[%s%s] %d%%" % ('█' * done, ' ' * (50 - done), 100 * temp_size / file_size_bytes))
+                sys.stdout.flush()
+        print()
         return True
 
     @demo_logger('unrar demo file')
@@ -63,7 +67,7 @@ class DownloadThread(threading.Thread):
         os.system(f'unrar x {dir_path}{self.file_backend} {dir_path}')
         os.remove(f'{dir_path}{self.file_backend}')
 
-    def run(self):
+    def start(self):
         self.getDemoId()
         for try_time in range(self.try_times):
             if self.downloadDemo(try_time):

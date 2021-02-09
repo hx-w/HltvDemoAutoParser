@@ -27,7 +27,7 @@ class NewMatchDetector():
 
     @demo_logger('detecting new match results')
     def detect(self) -> str:
-        self.init_lastmatch()
+        # self.init_lastmatch()
         while True:
             result = self.get_new_result()
             matchId = result['matchId']
