@@ -20,6 +20,7 @@ class DownloadThread():
         self.tar_name = matchId.split('/')[-2] # number
         self.file_backend = '.rar'
         self.try_times = 3
+        # self.matchTime = matchTime
 
     def formatFloat(self, number: float) -> float:
         return '{:.2f}'.format(number)
@@ -32,6 +33,10 @@ class DownloadThread():
         links = list(filter(lambda x: 'download/demo' in x['href'], soup.findAll('a')))
         assert len(links) > 0, f'demoId not found from {self.matchId}'
         self.demoId = links[0]['href']
+        # get matchtime
+        # if self.matchTime: return
+        # time_link = soup.findAll(name="div", attrs={"class": "date", "data-time-format": "do 'of' MMMM y"})
+        # self.matchTime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(time_link[0]["data-unix"][:-3])))
 
     @demo_logger('download demo file (.rar)')
     def downloadDemo(self, try_time: int) -> bool:
@@ -69,8 +74,11 @@ class DownloadThread():
 
     def start(self):
         self.getDemoId()
+        success = False
         for try_time in range(self.try_times):
-            if self.downloadDemo(try_time):
+            if success := self.downloadDemo(try_time):
                 break
-        self.unrar()
+        if success:
+            self.unrar()
+        return success
         

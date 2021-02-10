@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"time"
 
 	dem "github.com/markus-wa/demoinfocs-golang/v2/pkg/demoinfocs"
-	"github.com/markus-wa/demoinfocs-golang/v2/pkg/demoinfocs/common"
 	events "github.com/markus-wa/demoinfocs-golang/v2/pkg/demoinfocs/events"
 )
 
@@ -31,18 +29,23 @@ type UtilityRecord struct {
 	start_time       time.Duration
 	air_time         float32
 	match_throw_time float32
+	teamname         string
+	is_walk          bool
+	is_duck          bool
+	is_jump          bool
 }
 
 var utrecord_collector map[int64]UtilityRecord
 var type_map map[string]string
 var matchId, demoId int
-var matchName, matchTime, filePath, mapName string
+var matchName, matchTime, filePath, mapName, resPath string
 var tickRate float64
 
 func ArgParser() {
 	flag.StringVar(&matchName, "matchname", "Unknown", "Demo match name")
 	flag.StringVar(&matchTime, "matchtime", "2020-1-1 0:0:0", "Demo match time")
 	flag.StringVar(&filePath, "filepath", "Unknown", "Demo file path")
+	flag.StringVar(&resPath, "topath", "Unknown", "Demo file path")
 	flag.IntVar(&matchId, "matchid", 0, "Demo match id")
 	flag.IntVar(&demoId, "demoid", 0, "Demo id")
 
@@ -59,23 +62,20 @@ func JsonFomat(ut UtilityRecord, round int) string {
 		"end_x":            ut.end_posX,
 		"end_y":            ut.end_posY,
 		"end_z":            ut.end_posZ,
-		"is_walk":          false,
-		"is_jump":          false,
-		"is_duck":          false,
+		"is_walk":          ut.is_walk,
+		"is_jump":          ut.is_jump,
+		"is_duck":          ut.is_duck,
 		"is_left":          true,
 		"is_right":         false,
 		"map_belong":       mapName,
 		"air_time":         ut.air_time,
-		"match_id":         matchId,
 		"match_round":      round,
-		"match_name":       matchName,
-		"match_time":       matchTime,
-		"demo_id":          demoId,
 		"steamid":          ut.steamid,
 		"nickname":         ut.player_name,
 		"tickrate":         tickRate,
 		"utility_type":     type_map[ut.utType],
 		"match_throw_time": ut.match_throw_time,
+		"teamname":         ut.teamname,
 	}
 
 	str, err := json.Marshal(json_map)
@@ -119,7 +119,7 @@ func main() {
 	tickRate = p.TickRate()
 	count := 0
 
-	var infoPath = "static/info/" + strconv.Itoa(matchId) + "_" + mapName + ".json"
+	var infoPath = "static/info/" + resPath
 	var infoFile *os.File
 	var infoError error
 
@@ -171,6 +171,10 @@ func main() {
 				valid:            false,
 				start_time:       p.CurrentTime(),
 				match_throw_time: float32((p.CurrentTime() - round_start_time).Seconds()),
+				teamname:         string(e.Projectile.Thrower.TeamState.ClanName()),
+				is_walk:          e.Projectile.Thrower.IsWalking(),
+				is_jump:          e.Projectile.Thrower.IsAirborne(),
+				is_duck:          e.Projectile.Thrower.Flags().DuckingKeyPressed(),
 			}
 		} else {
 			fmt.Println(utrecord.utType)
@@ -274,20 +278,14 @@ func main() {
 		}
 	})
 
-	p.RegisterEventHandler(func(e events.GamePhaseChanged) {
-		if e.NewGamePhase == common.GamePhaseGameEnded {
-			n, infoError := io.WriteString(infoFile, "]")
-			if infoError != nil {
-				panic(infoError)
-			}
-			fmt.Printf("writen %d bytes | %d\n", n, count)
-		}
-	})
-
 	// Parse to end
 	err = p.ParseToEnd()
-	if err != nil {
-		panic(err)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	n, infoError := io.WriteString(infoFile, "]")
+	if infoError != nil {
+		panic(infoError)
 	}
-
+	fmt.Printf("writen %d bytes | %d\n", n, count)
 }

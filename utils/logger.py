@@ -10,6 +10,7 @@ def demo_logger(purpose: str):
                 return func(*args, **kwargs)
             except Exception as ept:
                 print('[Error]', '%s | %s [%s]' % (ept, func.__name__, currTime))
+                return False
         return wrapper
     return decorator
 

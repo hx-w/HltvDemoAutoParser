@@ -133,3 +133,7 @@ static/demos/*
 static/info/*
 
 utils/go-demoparser/demos
+utils/go-demoparser/static/info
+
+api.json
+script.py

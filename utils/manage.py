@@ -14,10 +14,14 @@ class AutoDownloader():
 
     def start(self):
         while True:
-            matchId = self.match_detector.detect()
-            downloader = DownloadThread(matchId)
-            downloader.start()
-            parser = DemoParser(downloader.matchId, downloader.demoId)
-            parser.parse()
+            result = self.match_detector.detect()
+            if result == {}: continue
+            try:
+                downloader = DownloadThread(result["matchId"])
+                if downloader.start():
+                    result["demoId"] = downloader.demoId
+                    parser = DemoParser(result)
+                    parser.parse()
+            except: pass
             time.sleep(30)
 
