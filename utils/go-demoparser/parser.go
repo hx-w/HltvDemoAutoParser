@@ -108,7 +108,7 @@ func main() {
 	p := dem.NewParser(f)
 	defer p.Close()
 
-	round := 0
+	round := 1
 	var round_start_time time.Duration
 
 	header, err := p.ParseHeader()
@@ -144,19 +144,23 @@ func main() {
 
 	utrecord_collector = make(map[int64]UtilityRecord)
 
+	p.RegisterEventHandler(func(e events.MatchStartedChanged) {
+		round = 1
+		round_start_time = p.CurrentTime()
+	})
+
 	p.RegisterEventHandler(func(e events.RoundStart) {
 		round++
 		round_start_time = p.CurrentTime()
 	})
 
-	p.RegisterEventHandler(func(e events.MatchStartedChanged) {
-		round++
+	p.RegisterEventHandler(func(e events.RoundFreezetimeEnd) {
 		round_start_time = p.CurrentTime()
 	})
 
 	p.RegisterEventHandler(func(e events.GrenadeProjectileThrow) {
 		uId := int64(e.Projectile.WeaponInstance.UniqueID())
-		utrecord, ok := utrecord_collector[uId]
+		_, ok := utrecord_collector[uId]
 		if !ok {
 			utrecord_collector[int64(e.Projectile.WeaponInstance.UniqueID())] = UtilityRecord{
 				player_name:      string(e.Projectile.Thrower.Name),
@@ -176,8 +180,6 @@ func main() {
 				is_jump:          e.Projectile.Thrower.IsAirborne(),
 				is_duck:          e.Projectile.Thrower.Flags().DuckingKeyPressed(),
 			}
-		} else {
-			fmt.Println(utrecord.utType)
 		}
 	})
 
@@ -196,11 +198,8 @@ func main() {
 			count++
 
 			json_str := JsonFomat(utrecord, round)
-			n, infoError := io.WriteString(infoFile, ","+json_str)
-			if infoError != nil {
-				panic(infoError)
-			}
-			fmt.Printf("writen %d bytes | %d\n", n, count)
+			io.WriteString(infoFile, ","+json_str)
+			// fmt.Printf("writen %d bytes | %d\n", n, count)
 
 			utrecord_collector[uId] = utrecord
 		}
@@ -225,11 +224,7 @@ func main() {
 			count++
 
 			json_str := JsonFomat(utrecord, round)
-			n, infoError := io.WriteString(infoFile, ","+json_str)
-			if infoError != nil {
-				panic(infoError)
-			}
-			fmt.Printf("writen %d bytes | %d\n", n, count)
+			io.WriteString(infoFile, ","+json_str)
 			utrecord_collector[uId] = utrecord
 		}
 	})
@@ -247,11 +242,7 @@ func main() {
 			count++
 
 			json_str := JsonFomat(utrecord, round)
-			n, infoError := io.WriteString(infoFile, ","+json_str)
-			if infoError != nil {
-				panic(infoError)
-			}
-			fmt.Printf("writen %d bytes | %d\n", n, count)
+			io.WriteString(infoFile, ","+json_str)
 			utrecord_collector[uId] = utrecord
 		}
 	})
@@ -268,11 +259,7 @@ func main() {
 			utrecord.air_time = he_flash_time
 			count++
 			json_str := JsonFomat(utrecord, round)
-			n, infoError := io.WriteString(infoFile, ","+json_str)
-			if infoError != nil {
-				panic(infoError)
-			}
-			fmt.Printf("writen %d bytes | %d\n", n, count)
+			io.WriteString(infoFile, ","+json_str)
 
 			utrecord_collector[uId] = utrecord
 		}

@@ -26,7 +26,7 @@ class DemoParser():
                 print('Demo parsing faild: <%s>' % (demofile))
                 continue
             demopath = os.path.join(self.demo_dir, demofile)
-            jsonfile = demofile[:-3] + 'json'
+            jsonfile = demofile[:-4] + '_' + str(self.parser_demoId_int) + '.json'
             os.system(f'go run {self.parser_path} -filepath {demopath} -topath {jsonfile} -matchtime "{self.result["time"]}" -matchid {self.parser_matchId_int} -demoid {self.parser_demoId_int} -matchname {self.parser_matchName_str}')
             # delete
             os.remove(demopath)
@@ -34,6 +34,7 @@ class DemoParser():
             try:
                 json_ = ujson.load(fr)
                 fr.close()
+                self.result["demoId"] = self.parser_demoId_int
                 res = {
                     "match_info": self.result,
                     "utility_info": json_[1:]
@@ -41,11 +42,11 @@ class DemoParser():
                 fo = open(self.info_dir + jsonfile, 'w')
                 ujson.dump(res, fo)
                 fo.close()
+                os.system(f"scp -i ~/.ssh/csgowiki_nopass.pem {self.info_dir + jsonfile} root@www.csgowiki.top:/home/csgowiki/csgowiki_docker/demoparser/static/")
             except Exception as ept:
                 print('[ERROR]', ept)
             # post
 
         # remove empty dir
         shutil.rmtree(self.demo_dir)
-        # os.system(f"scp -i ~/.ssh/csgowiki_nopass.pem static/info/{self.parser_matchId_int}_*.json root@www.csgowiki.top:/home/csgowiki/csgowiki_docker/demoparser/static/")
 
